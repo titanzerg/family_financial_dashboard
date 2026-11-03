@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>สรุปสินทรัพย์ครอบครัว</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>สรุปสินทรัพย์ครอบครัว <small>Module 1 · ยอดคงเหลือสิ้นเดือน</small></h1>
+    <nav>
+      <button data-tab="table" class="active">ตารางรายเดือน</button>
+      <button data-tab="dashboard">แดชบอร์ด</button>
+      <button data-tab="accounts">จัดการบัญชี</button>
+      <button data-tab="data">สำรอง / ส่งออก</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="tab-table" class="tab active">
+      <div class="toolbar">
+        <form id="add-period-form" class="inline">
+          <label>เพิ่มเดือน <input type="month" name="period" required></label>
+          <label class="check"><input type="checkbox" name="carry" checked> ยกยอดกลุ่ม C (ลงทุน) จากเดือนก่อน</label>
+          <button type="submit">+ เพิ่มเดือน</button>
+        </form>
+        <label class="check"><input type="checkbox" id="show-inactive"> แสดงบัญชีที่ปิดใช้งาน</label>
+      </div>
+      <p class="hint">
+        พิมพ์ยอดคงเหลือ ณ สิ้นเดือน แล้วกด Enter/Tab เพื่อบันทึก · ช่องว่าง = ยังไม่บันทึก (ไม่นับเป็น 0) ·
+        คลิกขวาที่ช่องเพื่อใส่หมายเหตุ · <span class="legend carried">↻ ยอดยกมา (ยังไม่ได้อัปเดตมูลค่า)</span>
+        <span class="legend missing">ยังไม่ได้กรอก</span>
+      </p>
+      <div id="table-wrap" class="table-wrap"></div>
+    </section>
+
+    <section id="tab-dashboard" class="tab">
+      <div class="toolbar">
+        <label>เดือน <select id="dash-period"></select></label>
+      </div>
+      <div id="dashboard"></div>
+    </section>
+
+    <section id="tab-accounts" class="tab">
+      <form id="add-account-form" class="card inline">
+        <strong>เพิ่มบัญชี</strong>
+        <input name="name" placeholder="ชื่อบัญชี" required maxlength="100">
+        <select name="group_code" id="new-account-group"></select>
+        <input name="note" placeholder="หมายเหตุ (ถ้ามี)" maxlength="500">
+        <button type="submit">+ เพิ่ม</button>
+      </form>
+      <p class="hint">การเปลี่ยนชื่อ ย้ายกลุ่ม หรือปิดใช้งาน จะไม่ลบหรือสร้างประวัติใหม่ — ยอดเดิมยังผูกกับ Account ID เดิม
+        (ระบบสำรองฐานข้อมูลอัตโนมัติก่อนย้ายกลุ่ม/ปิดใช้งาน)</p>
+      <div id="accounts-list"></div>
+    </section>
+
+    <section id="tab-data" class="tab">
+      <div class="card">
+        <h3>ส่งออกข้อมูล</h3>
+        <p>
+          <a class="btn" href="/api/export/monthly.csv">ตารางรายเดือน (CSV เปิดใน Excel)</a>
+          <a class="btn" href="/api/export/balances.csv">ยอดทั้งหมดแบบรายการ (CSV)</a>
+          <a class="btn" href="/api/export/backup.json">ไฟล์สำรองข้อมูลครบชุด (JSON)</a>
+        </p>
+      </div>
+      <div class="card">
+        <h3>สำรองฐานข้อมูล</h3>
+        <p><button id="backup-now">สำรองตอนนี้</button> <span id="backup-msg" class="muted"></span></p>
+        <details><summary>ไฟล์สำรองล่าสุด</summary><div id="backup-list" class="muted"></div></details>
+      </div>
+      <div class="card">
+        <h3>กู้คืนจากไฟล์สำรอง (JSON)</h3>
+        <p class="muted">ข้อมูลปัจจุบันจะถูกแทนที่ทั้งหมด — ระบบจะสำรองฐานข้อมูลปัจจุบันให้ก่อนเสมอ</p>
+        <input type="file" id="restore-file" accept=".json,application/json">
+      </div>
+      <div class="card">
+        <h3>ประวัติการแก้ไข (ล่าสุด 300 รายการ)</h3>
+        <div id="audit" class="table-wrap"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
