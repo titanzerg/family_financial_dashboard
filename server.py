@@ -38,7 +38,7 @@ def _csv_bytes(rows) -> bytes:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "FamilyFinance/0.1"
+    server_version = "FamilyFinance/0.3"
 
     # ---- plumbing -------------------------------------------------------
     def log_message(self, fmt, *args):
@@ -144,6 +144,21 @@ class Handler(BaseHTTPRequestHandler):
                 core.backup_db(conn, BACKUP_DIR, "before-account-change")
             return self._json(core.update_account(conn, r.group(1), **b))
 
+        if method == "POST" and path == "/api/groups":
+            b = self._body()
+            return self._json({"code": core.create_group(conn, b.get("name"), b.get("note"))}, 201)
+
+        if (r := m(r"/api/groups/([\w-]+)", path)) and method == "PATCH":
+            b = self._body()
+            g = core.get_group(conn, r.group(1))
+            if "is_active" in b and bool(b["is_active"]) != g["is_active"]:
+                core.backup_db(conn, BACKUP_DIR, "before-group-change")
+            return self._json(core.update_group(conn, r.group(1), **b))
+
+        if (r := m(r"/api/groups/([\w-]+)/move", path)) and method == "POST":
+            core.move_group(conn, r.group(1), self._body().get("direction"))
+            return self._json({"ok": True})
+
         if (r := m(r"/api/accounts/([\w-]+)/move", path)) and method == "POST":
             core.move_account(conn, r.group(1), self._body().get("direction"))
             return self._json({"ok": True})
@@ -164,9 +179,26 @@ class Handler(BaseHTTPRequestHandler):
             b = self._body()
             if "note" in b and "amount" not in b:
                 core.set_balance_note(conn, b.get("account_id"), b.get("period"), b.get("note"))
-            else:
-                core.set_balance(conn, b.get("account_id"), b.get("period"), b.get("amount"),
-                                 b.get("note"), keep_note="note" not in b)
+                return self._json({"ok": True})
+            res = core.set_balance(conn, b.get("account_id"), b.get("period"), b.get("amount"),
+                                   b.get("note"), keep_note="note" not in b)
+            return self._json({"ok": True, **res})
+
+        if method == "GET" and path == "/api/dependents":
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            return self._json(core.dependents(conn, q.get("account_id", [""])[0],
+                                              core.parse_period(q.get("period", [""])[0])))
+
+        if (r := m(r"/api/allocations/([\d-]+)/preview", path)) and method == "POST":
+            return self._json(core.preview_allocation(conn, r.group(1), self._body().get("inputs")))
+
+        if (r := m(r"/api/allocations/([\d-]+)/confirm", path)) and method == "POST":
+            b = self._body()
+            return self._json(core.confirm_allocation(conn, r.group(1), b.get("inputs"), b.get("balances"),
+                                                      bool(b.get("accept_negative"))))
+
+        if (r := m(r"/api/allocations/([\d-]+)", path)) and method == "DELETE":
+            core.delete_allocation(conn, r.group(1))
             return self._json({"ok": True})
 
         if method == "GET" and path == "/api/audit":
@@ -206,6 +238,9 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
+    pre = core.backup_file_before_migration(DB_PATH, BACKUP_DIR)
+    if pre:
+        print(f"สำรองฐานข้อมูลก่อนอัปเกรดโครงสร้าง: {pre}")
     conn = core.connect(DB_PATH)
     today = f"finance-{core._now()[:10].replace('-', '')}"
     done_today = os.path.isdir(BACKUP_DIR) and any(

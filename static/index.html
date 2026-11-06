@@ -8,7 +8,7 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>สรุปสินทรัพย์ครอบครัว <small>Module 1 · ยอดคงเหลือสิ้นเดือน</small></h1>
+    <h1>สรุปสินทรัพย์ครอบครัว <small>Module 1 · ยอดรายเดือน + จัดสรรเงินเดือน</small></h1>
     <nav>
       <button data-tab="table" class="active">ตารางรายเดือน</button>
       <button data-tab="dashboard">แดชบอร์ด</button>
@@ -22,16 +22,23 @@
       <div class="toolbar">
         <form id="add-period-form" class="inline">
           <label>เพิ่มเดือน <input type="month" name="period" required></label>
-          <label class="check"><input type="checkbox" name="carry" checked> ยกยอดกลุ่ม C (ลงทุน) จากเดือนก่อน</label>
+          <label class="check" id="carry-label"><input type="checkbox" name="carry" checked> <span>ยกยอดกลุ่มลงทุนจากเดือนก่อน</span></label>
           <button type="submit">+ เพิ่มเดือน</button>
         </form>
+      <div class="hint legend-row">
+          <span class="legend transfer">⇄ ระบบเติมจากการจัดสรร</span>
+          <span class="legend carried">↻ ยกมา</span>
+          <span class="legend missing">ยังไม่ได้กรอก</span>
+          <details class="howto"><summary>วิธีใช้</summary>
+            ยอดเดือนละครั้ง จดหลังโอนแบ่งเงินเดือนเสร็จ (เงินเดือนที่เข้าปลาย ต.ค. → ยอดเดือน พ.ย.) ·
+            ตอนเงินเดือนเข้า กด <b>จัดสรรเงินเดือน</b> ใต้ตารางของเดือนถัดไป ·
+            กด Enter/Tab เพื่อบันทึก · ช่องว่าง = ยังไม่บันทึก (ไม่นับเป็น 0) · คลิกขวาที่ช่องเพื่อใส่หมายเหตุ ·
+            ⇄ ระบบเติมให้ ควรเทียบกับแอปธนาคาร · ↻ ยอดยกมา ยังไม่ได้ตรวจยอดใหม่
+          </details>
+        </div>
+        <button type="button" class="ghost" id="fold-all" title="ซ่อน/แสดงรายการบัญชีทุกกลุ่ม">ซ่อน/แสดงทุกกลุ่ม</button>
         <label class="check"><input type="checkbox" id="show-inactive"> แสดงบัญชีที่ปิดใช้งาน</label>
       </div>
-      <p class="hint">
-        พิมพ์ยอดคงเหลือ ณ สิ้นเดือน แล้วกด Enter/Tab เพื่อบันทึก · ช่องว่าง = ยังไม่บันทึก (ไม่นับเป็น 0) ·
-        คลิกขวาที่ช่องเพื่อใส่หมายเหตุ · <span class="legend carried">↻ ยอดยกมา (ยังไม่ได้อัปเดตมูลค่า)</span>
-        <span class="legend missing">ยังไม่ได้กรอก</span>
-      </p>
       <div id="table-wrap" class="table-wrap"></div>
     </section>
 
@@ -43,6 +50,12 @@
     </section>
 
     <section id="tab-accounts" class="tab">
+      <form id="add-group-form" class="card inline">
+        <strong>เพิ่มกลุ่ม</strong>
+        <input name="name" placeholder="ชื่อกลุ่ม" required maxlength="100">
+        <input name="note" placeholder="หมายเหตุกลุ่ม (ถ้ามี)" maxlength="500">
+        <button type="submit">+ เพิ่มกลุ่ม</button>
+      </form>
       <form id="add-account-form" class="card inline">
         <strong>เพิ่มบัญชี</strong>
         <input name="name" placeholder="ชื่อบัญชี" required maxlength="100">
@@ -50,8 +63,10 @@
         <input name="note" placeholder="หมายเหตุ (ถ้ามี)" maxlength="500">
         <button type="submit">+ เพิ่ม</button>
       </form>
-      <p class="hint">การเปลี่ยนชื่อ ย้ายกลุ่ม หรือปิดใช้งาน จะไม่ลบหรือสร้างประวัติใหม่ — ยอดเดิมยังผูกกับ Account ID เดิม
-        (ระบบสำรองฐานข้อมูลอัตโนมัติก่อนย้ายกลุ่ม/ปิดใช้งาน)</p>
+      <p class="hint">การเปลี่ยนชื่อ เรียงลำดับ ย้ายกลุ่ม หรือปิดใช้งาน จะไม่ลบหรือสร้างประวัติใหม่ — ยอดเดิมยังผูกกับ ID เดิม
+        (ระบบสำรองฐานข้อมูลอัตโนมัติก่อนย้ายกลุ่ม/ปิดใช้งาน) ·
+        <b>บทบาท</b> ใช้ระบุบัญชีเงินเดือน, A-1, A-2, A-3 และ LH สำหรับการจัดสรรเงินเดือน (ผูกกับ ID ของบัญชี ไม่ใช่ชื่อ)</p>
+      <div id="roles-summary"></div>
       <div id="accounts-list"></div>
     </section>
 
@@ -80,6 +95,10 @@
       </div>
     </section>
   </main>
+
+  <dialog id="alloc-dialog" aria-labelledby="alloc-title">
+    <div id="alloc-body"></div>
+  </dialog>
 
   <div id="toast" role="status" aria-live="polite"></div>
   <script src="/app.js"></script>
